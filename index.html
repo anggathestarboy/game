@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Phyton Game</title>
+
+<style>
+
+body {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    background: #0b1e36; /* Dark navy */
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: Arial, sans-serif;
+    color: white;
+}
+
+#container {
+    width: 1024px;
+    padding: 20px;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+
+#instructionScreen h1 {
+    font-size: 48px;
+    font-weight: 900;
+    letter-spacing: 8px;
+    color: #4bb4ff;
+    margin-bottom: 10px;
+}
+
+#playerName {
+    padding: 12px;
+    width: 260px;
+    border: none;
+    border-radius: 6px;
+    font-size: 18px;
+}
+
+button {
+    margin-top: 20px;
+    padding: 12px 25px;
+    font-size: 18px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    background: #4287f5;
+    color: white;
+}
+button:hover { background: #5b99ff; }
+button:active { background: #1c5adb; }
+
+
+#gameScreen {
+    display: none;
+}
+
+#topPanel {
+    margin: 10px 0 15px 0;
+    font-size: 22px;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 10px;
+}
+
+#topPanel div {
+    color: #79b6ff;
+}
+
+
+#topPanelTitle {
+    font-size: 40px;
+    letter-spacing: 8px;
+    color: #4bb4ff;
+    font-weight: 900;
+    margin-top: -5px;
+}
+
+#board {
+    width: 960px;
+    height: 600px;
+    display: block;
+    margin: 0 auto;
+    background-color: #17365b;
+    border: 2px solid #244b73;
+    border-radius: 4px;
+}
+
+
+#rewindBtn {
+    background: #ff8a47;
+    padding: 12px 26px;
+    border-radius: 8px;
+    font-weight: bold;
+}
+#rewindBtn:hover { background: #ff9d63; }
+#rewindBtn:active { background: #cc6e38; }
+
+#rewindControls {
+    margin-top: 20px;
+    display: none;
+    text-align: center;
+}
+
+#cancelRewindBtn {
+    background: #777;
+    padding: 10px 20px;
+}
+
+</style>
+
+</head>
+<body>
+
+<div id="container">
+
+  
+   <div id="topPanelTitle">PHYT0NS</div>
+
+
+    <div id="instructionScreen">
+        <h1>Phyton Game</h1>
+        <p>Masukkan nama pemain sebelum mulai.</p>
+
+        <input type="text" id="playerName" placeholder="Nama pemain..." aria-label="Nama Pemain">
+
+        <br>
+        <button id="playBtn" disabled>Play</button>
+    </div>
+
+ 
+    <div id="gameScreen">
+
+        <div id="topPanel">
+            <div>Score: <span id="score">0</span></div>
+            <div>Time: <span id="timer">0</span>s</div>
+            <div>Highscore: <span id="highscore">0</span></div>
+        </div>
+
+        <canvas id="board"></canvas>
+
+        <div style="text-align:center;">
+            <button id="rewindBtn">Rewind 5s (Space)</button>
+        </div>
+
+       
+        <div id="rewindControls">
+            <input type="range" id="rewindSlider" min="0" max="5" value="0">
+            <br>
+            <button id="cancelRewindBtn">Cancel Rewind</button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+
+const canvas = document.getElementById("board");
+const ctx = canvas.getContext("2d");
+canvas.width = 960;
+canvas.height = 600;
+
+const GRID = 20;
+const COLS = 48;
+const ROWS = 30;
+
+let phyton = [];
+let direction = "E";
+let nextDir = "E";
+let score = 6;
+let timer = 0;
+let highscore = localStorage.getItem("phytonHighscore") || 0;
+document.getElementById("highscore").innerText = highscore;
+
+let gameInterval, timerInterval, pelletInterval;
+let pellets = [];
+
+let history = []; 
+
+const playerName = document.getElementById("playerName");
+playerName.addEventListener("input", () => {
+    document.getElementById("playBtn").disabled = playerName.value.trim() === "";
+});
+
+document.getElementById("playBtn").addEventListener("click", () => {
+    document.getElementById("instructionScreen").style.display = "none";
+    document.getElementById("gameScreen").style.display = "block";
+    startGame();
+});
+
+
+
+function drawGrid() {
+    for (let x = 0; x < COLS; x++) {
+        for (let y = 0; y < ROWS; y++) {
+
+           
+            let isDark = (x + y) % 2 === 0;
+            ctx.fillStyle = isDark ? "#17365b" : "#1a406a";
+
+            ctx.fillRect(x * GRID, y * GRID, GRID, GRID);
+        }
+    }
+
+    // garis grid
+    ctx.strokeStyle = "#0d223a";  
+    ctx.lineWidth = 1;
+
+
+    for (let x = 0; x <= COLS; x++) {
+        ctx.beginPath();
+        ctx.moveTo(x * GRID, 0);
+        ctx.lineTo(x * GRID, canvas.height);
+        ctx.stroke();
+    }
+
+    for (let y = 0; y <= ROWS; y++) {
+        ctx.beginPath();
+        ctx.moveTo(0, y * GRID);
+        ctx.lineTo(canvas.width, y * GRID);
+        ctx.stroke();
+    }
+}
+
+
+
+function startGame() {
+    phyton = [];
+
+
+    let startX = Math.floor(COLS/2);
+    let startY = Math.floor(ROWS/2);
+
+    for (let i = 0; i < 6; i++) {
+        phyton.push({ x: startX - i, y: startY });
+    }
+
+    direction = "E";
+    nextDir = "E";
+    score = 6;
+    timer = 0;
+
+    pellets = [];
+
+    startIntervals();
+}
+
+
+function startIntervals() {
+    timerInterval = setInterval(() => {
+        timer++;
+        document.getElementById("timer").innerText = timer;
+    }, 1000);
+
+    pelletInterval = setInterval(spawnPellet, 3000);
+
+    gameInterval = setInterval(gameLoop, 250); 
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    drawGrid(); // 
+
+ 
+    ctx.fillStyle = "brown";
+
+    phyton.forEach(p => {
+        ctx.fillRect(p.x * GRID, p.y * GRID, GRID, GRID);
+        
+    });
+
+
+    ctx.fillStyle = "lightblue";
+    pellets.forEach(pl => {
+        ctx.fillRect(pl.x * GRID, pl.y * GRID, GRID, GRID);
+    });
+}
+
+function spawnPellet() {
+    if (pellets.length >= 5) return;
+
+    let x = Math.floor(Math.random() * COLS);
+    let y = Math.floor(Math.random() * ROWS);
+
+
+    if (phyton.some(p => p.x === x && p.y === y)) return;
+
+    pellets.push({ x, y, time: Date.now() });
+
+  
+    setTimeout(() => {
+        pellets.shift();
+    }, 5000);
+}
+
+function movePhyton() {
+    direction = nextDir;
+
+    let head = { ...phyton[0] };
+
+    if (direction === "N") head.y--;
+    if (direction === "S") head.y++;
+    if (direction === "E") head.x++;
+    if (direction === "W") head.x--;
+
+
+    if (head.x < 0) head.x = COLS - 1;
+    if (head.x >= COLS) head.x = 0;
+    if (head.y < 0) head.y = ROWS - 1;
+    if (head.y >= ROWS) head.y = 0;
+
+ 
+    if (phyton.some(p => p.x === head.x && p.y === head.y)) {
+        gameOver();
+        return;
+    }
+
+
+    let ate = pellets.find(pl => pl.x === head.x && pl.y === head.y);
+    if (ate) {
+        pellets = pellets.filter(pl => pl !== ate);
+        score++;
+        document.getElementById("score").innerText = score;
+    } else {
+        phyton.pop();
+    }
+
+    phyton.unshift(head);
+}
+
+
+function gameLoop() {
+    saveHistory();
+    movePhyton();
+    draw();
+}
+
+document.addEventListener("keydown", e => {
+    const key = e.key.toLowerCase();
+
+    if (key === "w" || e.key === "ArrowUp")  if (direction !== "S") nextDir = "N";
+    if (key === "s" || e.key === "ArrowDown")if (direction !== "N") nextDir = "S";
+    if (key === "d" || e.key === "ArrowRight")if (direction !== "W") nextDir = "E";
+    if (key === "a" || e.key === "ArrowLeft")if (direction !== "E") nextDir = "W";
+
+    if (key === " ") startRewind();
+});
+
+
+function saveHistory() {
+    history.push({
+        phyton: JSON.parse(JSON.stringify(phyton)),
+        pellets: JSON.parse(JSON.stringify(pellets)),
+        score,
+        timer,
+        direction,
+    });
+
+    if (history.length > 20) history.shift();
+}
+
+
+document.getElementById("rewindBtn").addEventListener("click", startRewind);
+
+function startRewind() {
+    clearInterval(gameInterval);
+    clearInterval(timerInterval);
+    clearInterval(pelletInterval);
+
+    document.getElementById("rewindControls").style.display = "block";
+}
+
+document.getElementById("cancelRewindBtn").addEventListener("click", () => {
+    document.getElementById("rewindControls").style.display = "none";
+    startIntervals();
+});
+
+document.getElementById("rewindSlider").addEventListener("input", e => {
+    let sec = parseInt(e.target.value);
+    let index = history.length - 1 - (sec * 4);
+
+    if (index >= 0) {
+        let h = history[index];
+
+        phyton = JSON.parse(JSON.stringify(h.phyton));
+        pellets = JSON.parse(JSON.stringify(h.pellets));
+        score = h.score;
+        timer = h.timer;
+        direction = h.direction;
+
+        document.getElementById("score").innerText = score;
+        document.getElementById("timer").innerText = timer;
+        draw();
+    }
+});
+
+
+function gameOver() {
+    clearInterval(gameInterval);
+    clearInterval(timerInterval);
+    clearInterval(pelletInterval);
+
+    if (score > highscore) {
+        localStorage.setItem("phytonHighscore", score);
+        alert("Game Over! New Highscore: " + score);
+    } else {
+        alert("Game Over! Score: " + score);
+    }
+
+    location.reload();
+}
+</script>
+
+</body>
+</html>
