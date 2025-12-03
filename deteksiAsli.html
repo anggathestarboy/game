@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      canvas {
+        cursor: none;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas
+      id="myCanvas"
+      height="500"
+      width="500"
+      style="border: 1px solid black"
+    ></canvas>
+    <h1 id="score">Score: 0</h1>
+    <h1 id="timer">Timer: 00:00:00</h1>
+
+    <script>
+      let no = 1;
+      let waktu = 0;
+      let timer = document.getElementById("timer");
+      let canvas = document.getElementById("myCanvas");
+      let ctx = canvas.getContext("2d");
+      let score = document.getElementById("score");
+      let gameOver = false;
+      let img = new Image();
+      img.src = "mu.jpeg";
+
+      let dor = new Image();
+      dor.src = "dor.png";
+
+      let objek = {
+        x: Math.random() * (canvas.width - 50),
+        y: Math.random() * (canvas.height - 50),
+      };
+
+      function drawObject() {
+        ctx.beginPath();
+        ctx.drawImage(img, objek.x, objek.y, 50, 50);
+      }
+
+      let mouseX = null;
+      let mouseY = null;
+
+      canvas.addEventListener("mousemove", (e) => {
+        let rect = canvas.getBoundingClientRect();
+        mouseX = e.clientX - rect.left;
+        mouseY = e.clientY - rect.top;
+      });
+
+      function draw() {
+        let dunia = requestAnimationFrame(draw);
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        drawObject();
+
+        ctx.fillStyle = "red";
+        ctx.beginPath();
+        ctx.drawImage(dor, mouseX - 25, mouseY - 25, 50, 50);
+
+        ctx.fill();
+
+        canvas.addEventListener("mousedown", () => {
+          if (
+            mouseX > objek.x &&
+            mouseX < objek.x + 50 &&
+            mouseY > objek.y &&
+            mouseY < objek.y + 50
+          ) {
+            console.log("CLICKED!");
+            objek.x = Math.random() * (canvas.width - 50);
+            objek.y = Math.random() * (canvas.height - 50);
+            score.textContent = `Score ${no++}`;
+          }
+        });
+
+        if (no > 20) {
+          console.log("menang");
+          cancelAnimationFrame(dunia);
+          clearInterval(interval);
+          ctx.beginPath();
+          ctx.fillStyle = "blue";
+          ctx.font = "30px Arial";
+          ctx.fillText("You Win", 250, 250);
+        }
+      }
+
+      draw();
+
+      let interval = setInterval(() => {
+        waktu++;
+
+        let detik = waktu % 60;
+        let menit = Math.floor((waktu % 3600) / 60);
+        let jam = Math.floor(waktu / 36000);
+
+        let detikStr = String(detik).padStart(2, "0");
+        let menitStr = String(menit).padStart(2, "0");
+        let jamStr = String(jam).padStart(2, "0");
+
+        timer.textContent = `Timer: ${jamStr}:${menitStr}:${detikStr}`;
+      }, 1000);
+    </script>
+  </body>
+</html>
